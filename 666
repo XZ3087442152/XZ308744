@@ -1,0 +1,102 @@
+// make HidIn and HidMsg
+Hid hi;
+Hid hi2;
+HidMsg msg;
+HidMsg msg2;
+SinOsc s => JCRev r => dac;
+SinOsc s2 => JCRev r2 => dac;
+
+440 => float f;
+f => s.freq;
+0.5 => float g;
+g => s.gain;
+
+440 => float f2;
+f2 => s2.freq;
+g => s2.gain;
+
+
+
+// which mouse
+0 => int device;
+// get from command line
+if( me.args() ) me.arg(0) => Std.atoi => device;
+
+// open mouse 0, exit on fail
+if( !hi.openMouse( device ) ) me.exit();
+<<< "mouse '" + hi.name() + "' ready", "" >>>;
+
+// KEYBOARD
+if( !hi2.openKeyboard( device ) ) me.exit();
+<<< "keyboard '" + hi2.name() + "' ready", "" >>>;
+
+
+spork ~ KEYS();
+// infinite event loop
+while( true )
+{
+    // wait on HidIn as event
+    hi => now;
+    
+    // messages received
+    while( hi.recv( msg ) )
+    {
+        // mouse motion
+        if( msg.isMouseMotion() )
+        {
+            if( msg.deltaX )
+            {
+                f => s.freq;
+                f + msg.deltaX => f;
+                <<< "mouse motion:", msg.deltaX, "on x-axis" >>>;
+            }
+            
+            if( msg.deltaY )
+            {
+                f2 => s2.freq;
+                f2 - msg.deltaY => f2;
+                
+                <<< "mouse motion:", msg.deltaY, "on y-axis" >>>;
+            }
+        }  
+    }
+}
+
+fun void KEYS()
+{
+    // infinite event loop
+    while( true )
+    {
+        // wait on event
+        hi2 => now;
+        while( hi2.recv( msg2 ) )
+        {   
+            g => s.gain;
+            g => s2.gain;
+            f => s.freq;
+            f2 => s2.freq;
+            if (msg2.isButtonDown()){ 
+                <<< "down:", msg2.which, "(code)", msg2.key, "(usb key)", msg2.ascii, "(ascii)" >>>;
+                // UP
+                if (msg2.key == 82)
+                {
+                    g + 0.1 => g;
+                    
+                }
+                // DOWN
+                else if (msg2.key == 81)
+                {
+                    g - 0.1 => g;            
+                }
+                // SPACE RESETS
+                else if (msg2.key == 44)
+                {
+                    0.5 => g;
+                    440 => f;
+                    440 => f2;           
+                }
+            }
+            
+        }
+    }
+}
